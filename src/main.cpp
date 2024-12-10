@@ -4,6 +4,7 @@
 #include <thread>
 
 int main() {
+    std::cout << "Inicio del programa RobustReliableQueuing" << std::endl;
     std::thread brokerThread([]() {
         Broker broker;
         broker.start();
