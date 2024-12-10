@@ -1,6 +1,6 @@
-#include "Broker.hpp"
-#include "Worker.hpp"
-#include "Client.hpp"
+#include "broker.hpp"
+#include "worker.hpp"
+#include "client.hpp"
 #include <thread>
 
 int main() {

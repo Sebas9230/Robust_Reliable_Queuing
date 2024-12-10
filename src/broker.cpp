@@ -1,4 +1,4 @@
-#include "Broker.hpp"
+#include "broker.hpp"
 #include <iostream>
 #include <zmq.hpp>
 
@@ -15,16 +15,25 @@ void Broker::start() {
     };
 
     while (true) {
-        zmq::poll(items, 2, -1);
+        zmq::poll(items, 2, std::chrono::milliseconds(-1));
+
 
         // Handle client requests
         if (items[0].revents & ZMQ_POLLIN) {
             zmq::message_t client_id, request;
-            frontend.recv(client_id);
+            auto res = frontend.recv(client_id, zmq::recv_flags::none);
+            if (!res) {
+                // Manejo del error
+                std::cerr << "Error: Fallo al recibir el mensaje en frontend" << std::endl;
+                // Opcional: lanzar una excepción o tomar alguna acción correctiva.
+                return;
+            }
+
             frontend.recv(request);
             if (!workers.empty()) {
                 auto it = workers.begin();
-                backend.send(it->first, zmq::send_flags::sndmore);
+                zmq::message_t msg(it->first.data(), it->first.size());
+                backend.send(msg, zmq::send_flags::sndmore);
                 backend.send(client_id, zmq::send_flags::sndmore);
                 backend.send(request, zmq::send_flags::none);
                 workers.erase(it);
