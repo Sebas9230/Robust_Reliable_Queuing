@@ -4,6 +4,10 @@
 
 Broker::Broker()
     : context(1), frontend(context, ZMQ_ROUTER), backend(context, ZMQ_ROUTER) {
+    frontend.set(zmq::sockopt::linger, 0); // Evita bloqueos al cerrar
+    backend.set(zmq::sockopt::linger, 0); 
+    frontend.set(zmq::sockopt::rcvtimeo, 5000); // Timeout de 5 segundos para recv
+    backend.set(zmq::sockopt::rcvtimeo, 5000);  
     frontend.bind("tcp://*:5555");
     backend.bind("tcp://*:5556");
 }
@@ -15,9 +19,7 @@ void Broker::start() {
     };
 
     while (true) {
-        std::cout << "prueba" << std::endl;
         zmq::poll(items, 2, std::chrono::milliseconds(-1));
-
 
         // Handle client requests
         if (items[0].revents & ZMQ_POLLIN) {

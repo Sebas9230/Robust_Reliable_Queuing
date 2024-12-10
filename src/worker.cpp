@@ -6,6 +6,8 @@
 Worker::Worker(const std::string& id)
     : context(1), socket(context, ZMQ_DEALER), id(id) {
     socket.set(zmq::sockopt::routing_id, id);
+    socket.set(zmq::sockopt::linger, 0); // Evita bloqueos al cerrar
+    socket.set(zmq::sockopt::rcvtimeo, 5000); // Timeout de 5 segundos para recv
     socket.connect("tcp://localhost:5556");
 }
 
