@@ -15,6 +15,7 @@ void Broker::start() {
     };
 
     while (true) {
+        std::cout << "prueba" << std::endl;
         zmq::poll(items, 2, std::chrono::milliseconds(-1));
 
 
