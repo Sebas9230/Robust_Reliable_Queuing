@@ -6,8 +6,9 @@
 
 class Client {
 public:
-    Client(const std::string& brokerAddress);
-    void sendRequest(const std::string& imageName);
+    Client();
+    void sendRequest(const std::string& data);
+    void receiveResponse();
 
 private:
     zmq::context_t context;

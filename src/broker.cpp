@@ -1,55 +1,45 @@
-#include "broker.hpp"
+#include "Broker.hpp"
 #include <iostream>
-#include <queue>
+#include <zmq.hpp>
 
 Broker::Broker()
-    : context(1), clients(context, ZMQ_ROUTER), workers(context, ZMQ_ROUTER) {
-    clients.bind("tcp://*:5555");
-    workers.bind("tcp://*:5556");
+    : context(1), frontend(context, ZMQ_ROUTER), backend(context, ZMQ_ROUTER) {
+    frontend.bind("tcp://*:5555");
+    backend.bind("tcp://*:5556");
 }
 
-void Broker::run() {
+void Broker::start() {
     zmq::pollitem_t items[] = {
-        { clients, 0, ZMQ_POLLIN, 0 },
-        { workers, 0, ZMQ_POLLIN, 0 }
+        { static_cast<void*>(frontend), 0, ZMQ_POLLIN, 0 },
+        { static_cast<void*>(backend), 0, ZMQ_POLLIN, 0 }
     };
-
-    std::queue<std::string> workerQueue;
 
     while (true) {
         zmq::poll(items, 2, -1);
 
-        // Handle worker messages
-        if (items[1].revents & ZMQ_POLLIN) {
-            zmq::message_t workerIdentity;
-            workers.recv(workerIdentity, zmq::recv_flags::none);
-
-            zmq::message_t readySignal;
-            workers.recv(readySignal, zmq::recv_flags::none);
-
-            std::string workerId(static_cast<char*>(workerIdentity.data()), workerIdentity.size());
-            workerQueue.push(workerId);
+        // Handle client requests
+        if (items[0].revents & ZMQ_POLLIN) {
+            zmq::message_t client_id, request;
+            frontend.recv(client_id);
+            frontend.recv(request);
+            if (!workers.empty()) {
+                auto it = workers.begin();
+                backend.send(it->first, zmq::send_flags::sndmore);
+                backend.send(client_id, zmq::send_flags::sndmore);
+                backend.send(request, zmq::send_flags::none);
+                workers.erase(it);
+            }
         }
 
-        // Handle client messages
-        if (items[0].revents & ZMQ_POLLIN && !workerQueue.empty()) {
-            zmq::message_t clientIdentity;
-            clients.recv(clientIdentity, zmq::recv_flags::none);
-
-            zmq::message_t clientRequest;
-            clients.recv(clientRequest, zmq::recv_flags::none);
-
-            std::string workerId = workerQueue.front();
-            workerQueue.pop();
-
-            workers.send(zmq::buffer(workerId), zmq::send_flags::sndmore);
-            workers.send(clientRequest, zmq::send_flags::none);
-
-            zmq::message_t result;
-            workers.recv(result, zmq::recv_flags::none);
-
-            clients.send(clientIdentity, zmq::send_flags::sndmore);
-            clients.send(result, zmq::send_flags::none);
+        // Handle worker responses
+        if (items[1].revents & ZMQ_POLLIN) {
+            zmq::message_t worker_id, client_id, response;
+            backend.recv(worker_id);
+            backend.recv(client_id);
+            backend.recv(response);
+            frontend.send(client_id, zmq::send_flags::sndmore);
+            frontend.send(response, zmq::send_flags::none);
+            workers.emplace(worker_id.to_string(), 0);
         }
     }
 }

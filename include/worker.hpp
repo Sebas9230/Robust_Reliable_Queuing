@@ -6,14 +6,13 @@
 
 class Worker {
 public:
-    Worker(const std::string& brokerAddress);
-    void processTasks();
+    Worker(const std::string& id);
+    void start();
 
 private:
     zmq::context_t context;
     zmq::socket_t socket;
-
-    std::string processImage(const std::string& imageName);
+    std::string id;
 };
 
 #endif // WORKER_HPP
